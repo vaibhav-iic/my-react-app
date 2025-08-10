@@ -40,7 +40,7 @@ function App() {
 
   return (
     <div style={{ textAlign: "center", marginTop: "50px" }}>
-      <h1>Crypto Price Dashboard</h1>
+      <h1>Crypto Price Dashboard 🚀</h1>
       {loading ? (
         <p>Loading prices...</p>
       ) : (
