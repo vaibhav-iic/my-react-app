@@ -10,8 +10,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type HistoricalData = [number, number][]; // [timestamp, price]
+// Types
+type HistoricalData = [number, number][];
+type Histories = {
+  [coin: string]: HistoricalData;
+};
 
+// Coin + Range options
 const coinOptions = [
   { id: "bitcoin", name: "Bitcoin" },
   { id: "ethereum", name: "Ethereum" },
@@ -27,14 +32,11 @@ const rangeOptions = [
 ];
 
 function App() {
-  const [coin, setCoin] = useState("bitcoin");
   const [range, setRange] = useState(7);
-  const [price, setPrice] = useState<number | null>(null);
-  const [history, setHistory] = useState<HistoricalData>([]);
+  const [histories, setHistories] = useState<Histories>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // abort controller to cancel in-flight requests when user changes fast
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchData = async () => {
@@ -47,64 +49,59 @@ function App() {
       setLoading(true);
       setError("");
 
-      // Current price
-      const priceRes = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd`,
-        { signal: controller.signal }
-      );
-      if (!priceRes.ok) throw new Error(String(priceRes.status));
-      const priceData = await priceRes.json();
-      if (!priceData[coin]) throw new Error("NOT_FOUND");
-      setPrice(priceData[coin].usd);
+      // Fetch all coin histories in parallel
+      const results: Histories = {};
 
-      // Historical data with dynamic range
-      const historyRes = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${coin}/market_chart?vs_currency=usd&days=${range}&interval=daily`,
-        { signal: controller.signal }
+      await Promise.all(
+        coinOptions.map(async (c) => {
+          const res = await fetch(
+            `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${range}&interval=daily`,
+            { signal: controller.signal }
+          );
+          const data = await res.json();
+          results[c.id] = data.prices ?? [];
+        })
       );
-      if (!historyRes.ok) throw new Error(String(historyRes.status));
-      const historyData = await historyRes.json();
-      setHistory(historyData.prices ?? []);
+
+      setHistories(results);
     } catch (err: any) {
-      if (err?.name === "AbortError") return; // user changed selection; ignore
-      if (err?.message === "NOT_FOUND") {
-        setError("Coin not found. Try another.");
-      } else if (String(err?.message).includes("429")) {
+      if (err?.name === "AbortError") return;
+      if (String(err?.message).includes("429")) {
         setError("Too many requests. Please wait a few seconds.");
       } else {
         setError("Error fetching data.");
       }
-      setHistory([]);
-      setPrice(null);
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-fetch when coin or range changes, with a small debounce
+  // Auto-fetch when range changes
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchData();
-    }, 500); // wait 0.5s after last change
+    }, 500);
     return () => clearTimeout(timer);
-  }, [coin, range]);
+  }, [range]);
+
+  // Merge all coin histories into one dataset
+  const mergedData =
+    histories[coinOptions[0].id]?.map((_, index) => {
+      const date = new Date(histories[coinOptions[0].id][index][0]).toLocaleDateString();
+      const entry: any = { date };
+
+      coinOptions.forEach((c) => {
+        if (histories[c.id]) {
+          entry[c.name] = histories[c.id][index][1];
+        }
+      });
+
+      return entry;
+    }) ?? [];
 
   return (
     <div style={{ textAlign: "center", marginTop: "50px" }}>
-      <h1>Crypto Dashboard with Chart 🚀</h1>
-
-      {/* Coin dropdown */}
-      <select
-        value={coin}
-        onChange={(e) => setCoin(e.target.value)}
-        style={{ padding: "8px", fontSize: "16px", marginRight: "10px" }}
-      >
-        {coinOptions.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      <h1>Crypto Dashboard with Multi-Coin Chart 🚀</h1>
 
       {/* Range dropdown */}
       <select
@@ -119,7 +116,7 @@ function App() {
         ))}
       </select>
 
-      {/* Optional manual refresh button */}
+      {/* Manual refresh */}
       <button
         onClick={fetchData}
         disabled={loading}
@@ -131,30 +128,26 @@ function App() {
       <div style={{ marginTop: "20px" }}>
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
-        {price !== null && !loading && !error && (
-          <>
-            <p>
-              Current {coin.toUpperCase()} Price:{" "}
-              <strong>${price.toLocaleString("en-US")}</strong>
-            </p>
 
-            {history.length > 0 && (
-              <ResponsiveContainer width="90%" height={300}>
-                <LineChart
-                  data={history.map((item) => ({
-                    date: new Date(item[0]).toLocaleDateString(),
-                    price: item[1],
-                  }))}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="price" stroke="#8884d8" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </>
+        {mergedData.length > 0 && !loading && !error && (
+          <ResponsiveContainer width="90%" height={300}>
+            <LineChart data={mergedData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              {coinOptions.map((c, i) => (
+                <Line
+                  key={c.id}
+                  type="monotone"
+                  dataKey={c.name}
+                  stroke={["#8884d8", "#82ca9d", "#ff7300", "#00c49f", "#ff0000"][i]}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
