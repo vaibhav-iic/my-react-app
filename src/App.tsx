@@ -40,16 +40,40 @@ function App() {
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchData = async () => {
-    // cancel previous request if any
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  if (abortRef.current) abortRef.current.abort();
+  const controller = new AbortController();
+  abortRef.current = controller;
 
-    try {
-      setLoading(true);
-      setError("");
+  try {
+    setLoading(true);
+    setError("");
 
-      const results: Histories = {};
+    const results: Histories = {};
+    const interval = range > 90 ? "weekly" : "daily"; // ✅ dynamic interval
+
+    for (const c of coinOptions) {
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${range}&interval=${interval}`,
+        { signal: controller.signal }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      results[c.id] = data.prices ?? [];
+    }
+
+    setHistories(results);
+  } catch (err: any) {
+    console.error("FETCH ERROR:", err);
+    if (err?.name === "AbortError") return;
+    if (String(err?.message).includes("429")) {
+      setError("Too many requests. Please wait a few seconds.");
+    } else {
+      setError("Error fetching data.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
       // fetch each coin one after another to avoid rate limits
       for (const c of coinOptions) {
