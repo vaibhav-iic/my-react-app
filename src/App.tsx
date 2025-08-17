@@ -49,22 +49,22 @@ function App() {
       setLoading(true);
       setError("");
 
-      // Fetch all coin histories in parallel
       const results: Histories = {};
 
-      await Promise.all(
-        coinOptions.map(async (c) => {
-          const res = await fetch(
-            `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${range}&interval=daily`,
-            { signal: controller.signal }
-          );
-          const data = await res.json();
-          results[c.id] = data.prices ?? [];
-        })
-      );
+      // fetch each coin one after another to avoid rate limits
+      for (const c of coinOptions) {
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${range}&interval=daily`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        results[c.id] = data.prices ?? [];
+      }
 
       setHistories(results);
     } catch (err: any) {
+      console.error("FETCH ERROR:", err);
       if (err?.name === "AbortError") return;
       if (String(err?.message).includes("429")) {
         setError("Too many requests. Please wait a few seconds.");
@@ -87,7 +87,9 @@ function App() {
   // Merge all coin histories into one dataset
   const mergedData =
     histories[coinOptions[0].id]?.map((_, index) => {
-      const date = new Date(histories[coinOptions[0].id][index][0]).toLocaleDateString();
+      const date = new Date(
+        histories[coinOptions[0].id][index][0]
+      ).toLocaleDateString();
       const entry: any = { date };
 
       coinOptions.forEach((c) => {
