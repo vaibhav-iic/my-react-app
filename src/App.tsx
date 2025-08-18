@@ -51,20 +51,30 @@ function App() {
     const results: Histories = {};
     const interval = range > 90 ? "weekly" : "daily"; // ✅ dynamic interval
 
+    console.log(`🔄 Fetching data for all coins with range=${range}, interval=${interval}`);
+
     for (const c of coinOptions) {
-      const res = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${range}&interval=${interval}`,
-        { signal: controller.signal }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      console.log(`👉 Fetching ${c.name} (${c.id}) ...`);
+      const res = await fetch(`/api/coins?coin=${c.id}&days=${range}&interval=${interval}`);
+
+      if (!res.ok) {
+        console.error(`❌ Failed ${c.id} with HTTP ${res.status}`);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const data = await res.json();
+      console.log(`✅ ${c.id} data length: ${data.prices?.length || 0}`);
       results[c.id] = data.prices ?? [];
     }
 
     setHistories(results);
+    console.log("🎉 All data fetched successfully!");
   } catch (err: any) {
     console.error("FETCH ERROR:", err);
-    if (err?.name === "AbortError") return;
+    if (err?.name === "AbortError") {
+      console.warn("⚠️ Request aborted (user changed selection fast)");
+      return;
+    }
     if (String(err?.message).includes("429")) {
       setError("Too many requests. Please wait a few seconds.");
     } else {
@@ -74,31 +84,6 @@ function App() {
     setLoading(false);
   }
 };
-
-      // fetch each coin one after another to avoid rate limits
-      for (const c of coinOptions) {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${c.id}/market_chart?vs_currency=usd&days=${range}&interval=daily`,
-          { signal: controller.signal }
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        results[c.id] = data.prices ?? [];
-      }
-
-      setHistories(results);
-    } catch (err: any) {
-      console.error("FETCH ERROR:", err);
-      if (err?.name === "AbortError") return;
-      if (String(err?.message).includes("429")) {
-        setError("Too many requests. Please wait a few seconds.");
-      } else {
-        setError("Error fetching data.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Auto-fetch when range changes
   useEffect(() => {
