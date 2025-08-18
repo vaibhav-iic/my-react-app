@@ -55,7 +55,9 @@ function App() {
 
     for (const c of coinOptions) {
       console.log(`👉 Fetching ${c.name} (${c.id}) ...`);
-      const res = await fetch(`/api/coins?coin=${c.id}&days=${range}&interval=${interval}`);
+      const res = await fetch(
+  `/api/coins?coin=${c.id}&days=${range}&interval=daily`
+);
 
       if (!res.ok) {
         console.error(`❌ Failed ${c.id} with HTTP ${res.status}`);

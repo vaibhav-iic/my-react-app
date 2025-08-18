@@ -10,14 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "node-fetch": "^3.3.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "recharts": "^3.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@types/node-fetch": "^2.6.13",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
+    "@vercel/node": "^5.3.13",
     "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
