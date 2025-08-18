@@ -1,4 +1,6 @@
-export default async function handler(req, res) {
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { coin = "bitcoin", days = "7", interval = "daily" } = req.query;
 
   try {
@@ -6,7 +8,7 @@ export default async function handler(req, res) {
     const response = await fetch(url);
     const data = await response.json();
 
-    res.setHeader("Access-Control-Allow-Origin", "*"); // fix CORS
+    res.setHeader("Access-Control-Allow-Origin", "*"); // ✅ fix CORS
     res.status(200).json(data);
   } catch (err) {
     console.error("Proxy error:", err);
