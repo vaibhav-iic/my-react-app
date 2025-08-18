@@ -1,4 +1,4 @@
-export default async function handler(req: any, res: any) {
+export default async function handler(req, res) {
   const { coin = "bitcoin", days = "7", interval = "daily" } = req.query;
 
   try {
@@ -6,7 +6,7 @@ export default async function handler(req: any, res: any) {
     const response = await fetch(url);
     const data = await response.json();
 
-    res.setHeader("Access-Control-Allow-Origin", "*"); // CORS fix
+    res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json(data);
   } catch (err) {
     console.error("Proxy error:", err);
